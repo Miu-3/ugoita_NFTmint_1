@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NFT Minting Example</title>
+    <script
+      src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
+      type="application/javascript"
+    ></script>
+  </head>
+  <body>
+    <h1>NFT Minting Example</h1>
+    <button id="loadWallet">MetaMaskをロード</button>
+    <form id="mintForm" style="display: none;">
+      <label for="recipient">Mint先のアドレス:</label>
+      <input type="text" id="recipient" name="recipient" required />
+      <label for="tokenId">Token ID:</label>
+      <input type="number" id="tokenId" name="tokenId" min="1" required />
+      <label for="assetName">アセット名:</label>
+      <input type="text" id="assetName" name="assetName" required />
+      <button type="submit">NFTをmintする</button>
+    </form>
+    <p id="mintStatus"></p>
+
+    <script>
+      const API_KEY = ""; // EtherscanのAPIキーを入力
+      // const CONTRACT_ADDRESS = "0xc0e1E923C963E92259B1009a3572741FbFdcDE19"; // Goerli HolderCert
+      const CONTRACT_ADDRESS = "0xFe7d09E919719C377077cb72d184c34AC7FADFFa"; // Mumbai HolderCert
+
+      let provider, signer, nftContract;
+
+      const loadWalletButton = document.getElementById("loadWallet");
+      const mintForm = document.getElementById("mintForm");
+      const mintStatus = document.getElementById("mintStatus");
+
+      async function fetchABI(address) {
+        const url = `https://api-goerli.etherscan.io/api?module=contract&action=getabi&address=${address}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return JSON.parse(data.result);
+      }
+
+      loadWalletButton.addEventListener("click", async () => {
+        if (typeof window.ethereum !== "undefined") {
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          const contractABI = await fetchABI(CONTRACT_ADDRESS);
+          console.log(contractABI);
+          nftContract = new ethers.Contract(
+            CONTRACT_ADDRESS,
+            contractABI,
+            signer
+          );
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          mintForm.style.display = "block";
+        } else {
+          alert(
+            "MetaMaskがインストールされていないようです。MetaMaskをインストールしてください。"
+          );
+        }
+      });
+
+      mintForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const recipient = document.getElementById("recipient").value;
+        const tokenId = document.getElementById("tokenId").value;
+        const assetName = document.getElementById("assetName").value;
+
+        if (nftContract && recipient && tokenId && assetName) {
+          try {
+            const tx = await nftContract.safeMint(
+              recipient,
+              tokenId,
+              assetName
+            );
+            mintStatus.innerText =
+              "トランザクション送信中: トランザクションハッシュ: " + tx.hash;
+            await tx.wait();
+            mintStatus.innerText = "成功: トランザクションハッシュ: " + tx.hash;
+          } catch (error) {
+            console.error(error);
+            mintStatus.innerText = "失敗: " + error.message;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
